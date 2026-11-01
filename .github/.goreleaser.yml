@@ -1,0 +1,69 @@
+version: 2
+
+project_name: lazyssh
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: lazyssh
+    main: ./cmd/lazyssh
+    binary: lazyssh
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - docs/*
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^chore:'
+      - '^test:'
+  groups:
+    - title: "✨ Features"
+      regexp: '^feat(\(.*\))?:'
+      order: 0
+    - title: "🐛 Bug Fixes"
+      regexp: '^fix(\(.*\))?:'
+      order: 1
+    - title: "⚡ Performance Improvements"
+      regexp: '^perf(\(.*\))?:'
+      order: 2
+    - title: "♻️ Refactoring"
+      regexp: '^refactor(\(.*\))?:'
+      order: 3
+    - title: "Others"
+      order: 999

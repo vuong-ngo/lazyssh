@@ -1,0 +1,58 @@
+run:
+  timeout: 5m
+  tests: true
+  allow-parallel-runners: true
+
+output:
+  formats:
+    - format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+      - shadow
+  errcheck:
+    check-type-assertions: true
+    check-blank: false
+  gosec:
+    severity: medium
+    confidence: medium
+  revive:
+    rules:
+      - name: exported
+        disabled: false
+      - name: package-comments
+        disabled: false
+      - name: var-naming
+        disabled: false
+      - name: indent-error-flow
+        disabled: false
+  misspell:
+    locale: US
+  whitespace:
+    multi-if: true
+    multi-func: true
+
+linters:
+  disable-all: true
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - ineffassign
+    - gosec
+    - revive
+    - misspell
+    - unconvert
+    - whitespace
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
