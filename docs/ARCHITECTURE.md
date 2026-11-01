@@ -332,7 +332,8 @@ sequenceDiagram
         SSHProc->>RemoteServer: TCP Connect & SSH Handshake
         SSHProc->>RemoteServer: Authenticate (ssh-agent, YubiKey, Keys)
         RemoteServer-->>SSHProc: Interactive Remote Shell Session Granted
-        User<-->>SSHProc: Full Interactive Shell (tmux, vim, htop, SIGWINCH resize)
+        User->>SSHProc: Send keystrokes and interactive commands
+        SSHProc-->>User: Stream PTY screen output (tmux, vim, htop)
     end
 
     rect rgb(45, 25, 25)
