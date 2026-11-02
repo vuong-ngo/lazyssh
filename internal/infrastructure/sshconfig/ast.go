@@ -5,6 +5,7 @@
 //              preserving comments, blank lines, and original indentation.
 // ==============================================================================
 
+// Package sshconfig provides an AST, streaming parser, and atomic writer for OpenSSH configuration files.
 package sshconfig
 
 import (

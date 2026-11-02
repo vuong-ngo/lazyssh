@@ -5,6 +5,7 @@
 //              probing across domain Host entities with concurrency control.
 // ==============================================================================
 
+// Package application provides orchestration use cases for host inventory, SSH sessions, and latency monitoring.
 package application
 
 import (

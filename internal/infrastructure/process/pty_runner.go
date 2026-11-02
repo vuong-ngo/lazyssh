@@ -5,6 +5,7 @@
 //              with lifecycle hooks, stream binding, and signal propagation.
 // ==============================================================================
 
+// Package process provides OS subprocess management and PTY handover for OpenSSH.
 package process
 
 import (
@@ -89,6 +90,7 @@ func (r *PTYRunner) BuildCommand(ctx context.Context, host domain.Host) (*exec.C
 
 	args := host.SSHArgs()
 
+	// #nosec G204 -- bin is resolved via LookPath and args are structured flags from Host entity
 	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Stdin = r.stdin
 	cmd.Stdout = r.stdout

@@ -1,3 +1,4 @@
+// Package main is the entrypoint for lazyssh terminal CLI and TUI application.
 package main
 
 import (

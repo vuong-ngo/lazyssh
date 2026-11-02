@@ -69,7 +69,9 @@ func (p *Parser) ParseFile(filePath string) (*Document, []domain.Host, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening ssh config '%s': %w", expandedPath, err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	doc, hosts, err := p.Parse(file)
 	if err != nil {

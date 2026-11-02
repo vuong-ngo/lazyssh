@@ -42,7 +42,8 @@ func (w *Writer) WriteAtomic(filePath string, doc *Document) error {
 	tempName := fmt.Sprintf(".%s.tmp.%d", base, time.Now().UnixNano())
 	tempPath := filepath.Join(dir, tempName)
 
-	tempFile, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	// #nosec G304 -- tempPath is derived from validated user config target path
+	tempFile, err := os.OpenFile(filepath.Clean(tempPath), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("creating temporary file '%s': %w", tempPath, err)
 	}

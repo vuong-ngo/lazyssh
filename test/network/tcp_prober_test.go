@@ -45,7 +45,10 @@ func startMockTCPServer(t *testing.T) (host string, port int, stop func()) {
 		}
 	}()
 
-	addr := listener.Addr().(*net.TCPAddr)
+	addr, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatal("expected listener address to be *net.TCPAddr")
+	}
 	stop = func() {
 		close(stopCh)
 		_ = listener.Close()
@@ -87,7 +90,11 @@ func TestTCPProber_Probe_Unreachable_ClosedPort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to reserve port: %v", err)
 	}
-	port := l.Addr().(*net.TCPAddr).Port
+	tcpAddr, ok := l.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatal("expected *net.TCPAddr")
+	}
+	port := tcpAddr.Port
 	_ = l.Close()
 
 	prober := network.NewTCPProber()
@@ -107,7 +114,7 @@ func TestTCPProber_Probe_Unreachable_ClosedPort(t *testing.T) {
 }
 
 func TestTCPProber_Probe_Timeout(t *testing.T) {
-	// Custom dialFunc that blocks until context is cancelled, simulating network blackhole
+	// Custom dialFunc that blocks until context is canceled, simulating network blackhole
 	mockDial := func(ctx context.Context, network, address string) (net.Conn, error) {
 		select {
 		case <-ctx.Done():
@@ -142,7 +149,7 @@ func TestTCPProber_Probe_PreCancelledContext(t *testing.T) {
 	result := prober.Probe(ctx, "127.0.0.1", 22, 1*time.Second)
 
 	if result.Reachable {
-		t.Fatal("expected probe with cancelled context to be unreachable")
+		t.Fatal("expected probe with canceled context to be unreachable")
 	}
 	if result.Err == nil {
 		t.Fatal("expected context cancellation error, got nil")

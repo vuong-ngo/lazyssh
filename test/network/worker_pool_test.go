@@ -50,7 +50,11 @@ func TestWorkerPool_ProbeBatch_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to reserve port: %v", err)
 	}
-	unreachablePort := l.Addr().(*net.TCPAddr).Port
+	tcpAddr, ok := l.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatal("expected *net.TCPAddr")
+	}
+	unreachablePort := tcpAddr.Port
 	_ = l.Close()
 
 	hosts := []domain.Host{

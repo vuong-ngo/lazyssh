@@ -5,6 +5,7 @@
 //              parsing, configuration bounds, and permission enforcement.
 // ==============================================================================
 
+// Package domain provides the core business entities, validation rules, and sentinel errors for lazyssh.
 package domain
 
 import "errors"

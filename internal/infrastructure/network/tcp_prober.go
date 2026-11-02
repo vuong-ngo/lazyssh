@@ -5,6 +5,7 @@
 //              time without performing full SSH cryptographic authentication.
 // ==============================================================================
 
+// Package network provides TCP latency probing and bounded concurrency worker pool implementations.
 package network
 
 import (

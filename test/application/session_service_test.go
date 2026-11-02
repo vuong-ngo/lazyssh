@@ -36,6 +36,7 @@ func (m *mockRunner) BuildCommand(ctx context.Context, host domain.Host) (*exec.
 	if m.buildCommandFunc != nil {
 		return m.buildCommandFunc(ctx, host)
 	}
+	// #nosec G204 -- mock runner synthesizes test exec.Cmd
 	return exec.Command("ssh", host.SSHArgs()...), nil
 }
 

@@ -11,9 +11,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -136,6 +134,7 @@ func TestPTYRunner_Execute_SuccessWithHooks(t *testing.T) {
 	var stderr bytes.Buffer
 	runner := process.NewPTYRunnerWithStreams(goBin, nil, &stdout, &stderr)
 
+	// #nosec G204 -- test executes system go binary to verify stream forwarding
 	cmd := exec.Command(goBin, "version")
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -208,6 +207,7 @@ func TestPTYRunner_Execute_PostHookGuaranteedOnFailure(t *testing.T) {
 	runner := process.NewPTYRunner()
 
 	// Run an invalid go subcommand to produce non-zero exit code
+	// #nosec G204 -- test executes invalid go subcommand to verify exit code handling
 	cmd := exec.Command(goBin, "invalid-subcommand-xyz-999")
 
 	var postHookCalled bool
@@ -244,11 +244,7 @@ func TestPTYRunner_Execute_ContextCancellation(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// Command that would take some time if not killed
-	// Using test binary with long sleep or timeout
-	tmpScript := filepath.Join(t.TempDir(), "dummy")
-	_ = os.WriteFile(tmpScript, []byte("echo sleeping"), 0755)
-
+	// #nosec G204 -- test verifies cancellation handling on subprocess
 	cmd := exec.CommandContext(ctx, goBin, "doc", "builtin")
 
 	// Cancel context immediately after launching

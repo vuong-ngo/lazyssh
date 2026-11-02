@@ -249,7 +249,8 @@ func TestWriter_WriteAtomicAndPermissions(t *testing.T) {
 	}
 
 	// 3. Verify content fidelity
-	readBytes, err := os.ReadFile(targetPath)
+	// #nosec G304 -- test reads back written temp file to verify roundtrip fidelity
+	readBytes, err := os.ReadFile(filepath.Clean(targetPath))
 	if err != nil {
 		t.Fatalf("failed to read back written file: %v", err)
 	}

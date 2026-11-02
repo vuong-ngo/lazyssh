@@ -63,7 +63,7 @@ func (wp *WorkerPool) Timeout() time.Duration {
 }
 
 // ProbeBatch executes batch probes across all provided hosts concurrently,
-// blocking until all probes complete or the context is cancelled.
+// blocking until all probes complete or the context is canceled.
 // It returns a map of host alias to ProbeResult.
 func (wp *WorkerPool) ProbeBatch(ctx context.Context, hosts []domain.Host) map[string]ProbeResult {
 	results := make(map[string]ProbeResult, len(hosts))
