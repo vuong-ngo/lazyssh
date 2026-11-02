@@ -1,6 +1,6 @@
 # Project Structure
 
-`lazyssh` adheres to standard Go project conventions (as documented in [golang-standards/project-layout](https://github.com/golang-standards/project-layout)).
+`lazyssh` is engineered using **Hexagonal Architecture (Ports and Adapters)** to enforce strict separation of concerns, testability, and zero domain bloat, adhering to standard Go project conventions ([golang-standards/project-layout](https://github.com/golang-standards/project-layout)).
 
 ---
 
@@ -10,81 +10,72 @@
 lazyssh/
 ├── cmd/
 │   └── lazyssh/
-│       ├── main.go                # Application entrypoint
-│       ├── root.go                # Root Cobra command & global flags
-│       ├── connect.go             # 'lazyssh connect' subcommand
-│       ├── list.go                # 'lazyssh list' subcommand
-│       ├── ping.go                # 'lazyssh ping' subcommand
-│       └── version.go             # 'lazyssh version' subcommand
+│       ├── main.go                       # Application entrypoint & version injection
+│       ├── root.go                       # Root Cobra CLI command & global flags
+│       ├── connect.go                    # 'lazyssh connect' headless command
+│       ├── list.go                       # 'lazyssh list' JSON/table command
+│       ├── ping.go                       # 'lazyssh ping' standalone probe command
+│       └── version.go                    # 'lazyssh version' build information
 │
-├── internal/                      # Private internal packages (not exportable)
-│   ├── app/
-│   │   └── app.go                 # App context initialization & shutdown hooks
-│   ├── config/
-│   │   ├── config.go              # YAML config loader (~/.config/lazyssh/config.yaml)
-│   │   ├── defaults.go            # Default configurations
-│   │   └── metadata.go            # Favorites, history, and custom tags storage
-│   ├── sshconfig/
-│   │   ├── parser.go              # ~/.ssh/config tokenizer and parser
-│   │   ├── writer.go              # Non-destructive atomic config writer
-│   │   ├── resolver.go            # Include directive resolver and host matcher
-│   │   └── validator.go           # Configuration validation rules
-│   ├── model/
-│   │   ├── host.go                # HostConfig data structures
-│   │   ├── tunnel.go              # PortForward data structures
-│   │   └── key.go                 # SSH identity and agent data structures
-│   ├── session/
-│   │   ├── handover.go            # PTY terminal suspension & OpenSSH process handover
-│   │   └── executor.go            # Local command executor & clipboard integration
-│   ├── tunnel/
-│   │   ├── manager.go             # Active tunnel daemon & supervisor
-│   │   ├── local.go               # Local port forward handler (-L)
-│   │   ├── remote.go              # Remote port forward handler (-R)
-│   │   └── socks5.go              # Dynamic proxy handler (-D)
-│   ├── health/
-│   │   ├── ping.go                # TCP 3-way handshake latency probe
-│   │   └── pool.go                # Concurrency-limited worker pool
-│   ├── keyring/
-│   │   ├── agent.go               # ssh-agent UNIX socket client
-│   │   └── inspector.go           # Public key file reader & fingerprint calculator
-│   └── tui/
-│       ├── root.go                # Root Bubble Tea model & event router
-│       ├── styles.go              # Lipgloss styling rules
-│       ├── theme/
-│       │   ├── theme.go           # Theme definitions & color palettes
-│       │   ├── tokyonight.go      # Tokyo Night theme
-│       │   ├── catppuccin.go      # Catppuccin Mocha theme
-│       │   └── nord.go            # Nord theme
-│       └── components/
-│           ├── hostlist/          # Host list view & pagination model
-│           ├── details/           # Host inspector panel model
-│           ├── tunnels/           # Active tunnels panel model
-│           ├── keys/              # SSH key inspector panel model
-│           ├── search/            # Fuzzy search bar component
-│           └── modal/             # Shared modal dialogs (Add/Edit/Confirm/Help)
+├── internal/                             # Private application packages (not exportable)
+│   │
+│   ├── domain/                           # Enterprise Domain Layer (Pure Business Core)
+│   │   ├── host.go                       # Host & PortForward entities, validation, helpers
+│   │   └── errors.go                     # Strongly typed sentinel domain errors
+│   │
+│   ├── application/                      # Application Layer (Use Cases & Orchestration)
+│   │   ├── host_service.go               # Host listing, search, mutation coordination
+│   │   ├── session_service.go            # SSH session preparation and invocation
+│   │   ├── health_service.go             # Latency probe scheduling & dispatching
+│   │   └── tunnel_service.go             # Port forward lifecycle supervisor
+│   │
+│   ├── infrastructure/                   # Driven Adapters (Infrastructure Implementations)
+│   │   ├── sshconfig/                    # OpenSSH config engine (AST, Parser, Writer)
+│   │   │   ├── ast.go                    # In-memory AST nodes (comments, indentation, CRLF)
+│   │   │   ├── parser.go                 # Streaming parser with recursive include resolution
+│   │   │   └── writer.go                 # Atomic persistence (temp file + fsync + 0600)
+│   │   ├── process/                      # OS process & terminal handover adapter
+│   │   │   └── pty_runner.go             # PTY raw mode suspension, /usr/bin/ssh exec, restoration
+│   │   ├── network/                      # TCP socket latency probe adapter
+│   │   │   ├── tcp_prober.go             # Pure Go TCP 3-way handshake RTT prober (net.DialTimeout)
+│   │   │   └── worker_pool.go            # Bounded concurrency worker pool with context cancellation
+│   │   └── keyring/                      # System SSH agent adapter
+│   │       └── agent.go                  # ssh-agent UNIX domain socket client & key inspector
+│   │
+│   └── interfaces/                       # Driving Adapters (Presentation & User Interface)
+│       └── tui/                          # Terminal UI (Bubble Tea / Lipgloss)
+│           ├── model.go                  # Root Model, Update, View coordinator
+│           ├── styles.go                 # Lipgloss theme definitions & styling rules
+│           └── components/               # Modular sub-models (Elm Architecture)
+│               ├── hostlist/             # Host table / list view & navigation
+│               ├── details/              # Host details inspector panel
+│               ├── tunnels/              # Active port forwarding tunnels panel
+│               ├── keys/                 # SSH identity keys inspector panel
+│               └── search/               # Fuzzy filter input bar
 │
-├── docs/                          # Architecture, specs, and design documentation
-│   ├── ARCHITECTURE.md
-│   ├── SPECIFICATION.md
-│   ├── CONFIGURATION.md
-│   ├── KEYBINDINGS.md
-│   ├── ROADMAP.md
-│   ├── PROJECT_STRUCTURE.md
-│   └── CONTRIBUTING.md
+├── test/                                 # Isolated Testing Suite (Separated from production code)
+│   ├── domain/
+│   │   └── host_test.go                  # Unit tests for Host & PortForward domain logic
+│   └── sshconfig/
+│       └── parser_test.go                # Comprehensive tests for AST parser, writer, CRLF, permissions
 │
-├── test/
-│   ├── fixtures/                  # Sample SSH config files for unit/integration testing
-│   │   ├── simple.conf
-│   │   ├── includes.conf
-│   │   └── complex.conf
-│   └── mocks/                     # Mock implementations for testing
+├── docs/                                 # Architecture, specifications, and design documentation
+│   ├── ARCHITECTURE.md                   # Comprehensive architecture guide & UML diagrams
+│   ├── KEYBINDINGS.md                    # Interactive keybindings quick reference
+│   ├── PROJECT_STRUCTURE.md              # Project layout & package responsibility guide
+│   └── SPECIFICATION.md                  # Functional and non-functional requirements
 │
-├── .gitignore                     # Git ignore rules
-├── LICENSE                        # MIT License
-├── Makefile                       # Developer automation tasks (build, test, lint)
-├── README.md                      # Project presentation and user guide
-├── go.mod                         # Go module definition
-└── go.sum                         # Go module checksums
+├── .github/                              # CI/CD Workflows & Linter Configurations
+│   ├── workflows/
+│   │   ├── ci.yml                        # Cross-platform CI matrix (Ubuntu, macOS, Windows)
+│   │   └── release.yml                   # GoReleaser multi-architecture automated releases
+│   ├── .golangci.yml                     # Strict enterprise Go linter configuration
+│   └── .goreleaser.yml                   # Cross-compilation targets & packaging specs
+│
+├── Makefile                              # Developer automation tasks (build, test, lint, check)
+├── LICENSE                               # MIT License
+├── go.mod                                # Go module definition
+└── go.sum                                # Go module checksums
 ```
 
 ---
@@ -92,19 +83,40 @@ lazyssh/
 ## Package Responsibilities
 
 ### `cmd/lazyssh/`
-Contains the `main` package. Its sole responsibility is to parse CLI flags and arguments via [Cobra](https://github.com/spf13/cobra) and initialize the runtime. It does not contain core business logic.
+Contains the application entrypoint. Its sole responsibility is to bootstrap the application, bind CLI flags via [Cobra](https://github.com/spf13/cobra), inject build-time version stamps, and initialize the presentation layer. It contains zero business logic.
 
-### `internal/sshconfig/`
-Independent of the UI. Encapsulates all reading, parsing, resolving, and writing of OpenSSH configuration files. It can be thoroughly tested with unit test fixtures without requiring a terminal.
+### `internal/domain/`
+The heart of the application containing pure enterprise business logic and entities.
+- **`host.go`**: Defines `Host`, `PortForward`, and `ForwardType` entities with pure business validation (`Validate()`), effective address calculation (`EffectivePort()`, `EffectiveHostName()`), and argument synthesis (`SSHArgs()`). Has **zero external dependencies** outside the Go standard library.
+- **`errors.go`**: Defines strongly typed domain sentinel errors (`ErrEmptyAlias`, `ErrInvalidPort`, `ErrHostNotFound`, `ErrCircularInclude`, etc.) enabling clean error matching across layers.
 
-### `internal/session/`
-Responsible for transitioning the terminal environment from the Bubble Tea TUI to the raw `/usr/bin/ssh` process and restoring terminal state cleanly when the session finishes.
+### `internal/application/`
+Orchestrates domain entities and interfaces with driven infrastructure ports. Houses use case implementations:
+- Managing host inventory and fuzzy search filtering.
+- Coordinating background TCP health probe batches across hosts.
+- Supervising active port forward tunnels and monitoring PID lifecycles.
 
-### `internal/health/`
-Handles network probes to test host availability. Probing uses pure Go `net` standard library sockets with tight timeouts to avoid blocking the UI.
+### `internal/infrastructure/sshconfig/`
+Provides a 100% round-trip lossless OpenSSH configuration parser and writer.
+- **`ast.go`**: Models configuration documents as an Abstract Syntax Tree (AST), retaining comments, blank lines, indentation whitespace, and platform-specific CRLF/LF line endings.
+- **`parser.go`**: Tokenizes and parses `~/.ssh/config` streams with recursive `Include` directive resolution and visited-path cycle detection.
+- **`writer.go`**: Implements crash-proof atomic updates by writing to an adjacent temporary file with POSIX `0600` permissions, executing `file.Sync()` (`fsync`), and atomically replacing the file via `os.Rename`.
 
-### `internal/tunnel/`
-Manages background SSH port forwarding processes. Tracks process IDs, active ports, error states, and automatic restarts.
+### `internal/infrastructure/process/`
+Handles OS-level process management and terminal PTY handovers:
+- Releases Bubble Tea raw mode (`tcsetattr`) and restores standard I/O streams.
+- Hands terminal control to the native `/usr/bin/ssh` binary.
+- Cleanly recovers the TUI screen buffer and keyboard raw mode upon process exit.
 
-### `internal/tui/`
-Implements the Bubble Tea `Model`, `Update`, and `View` functions. Decomposed into modular components (`components/`) so each panel is an independent sub-model with its own local state.
+### `internal/infrastructure/network/`
+Implements network reachability and latency probing:
+- **`tcp_prober.go`**: Measures round-trip time (RTT) via TCP 3-way handshake (`net.DialTimeout`) without performing full SSH authentication.
+- **`worker_pool.go`**: A bounded-concurrency worker pool (default 10 workers) preventing file descriptor starvation during batch pings.
+
+### `internal/interfaces/tui/`
+The presentation layer built on [Bubble Tea](https://github.com/charmbracelet/bubbletea) and [Lipgloss](https://github.com/charmbracelet/lipgloss). Follows the Elm Architecture:
+- Root model coordinates active panel focus and global hotkeys.
+- Decoupled panel components maintain isolated view states and communicate via typed messages.
+
+### `test/`
+Strictly isolated test directory. Production packages in `internal/` contain no `*_test.go` files, ensuring clean build separation and preventing test fixtures or test utilities from leaking into binary builds.

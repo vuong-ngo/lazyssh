@@ -16,6 +16,7 @@ This document defines the software architecture, design patterns, internal compo
 8. [Bounded Concurrency & Health Prober Model](#8-bounded-concurrency--health-prober-model)
 9. [Tunnel Supervisor Lifecycle (UML State Diagram)](#9-tunnel-supervisor-lifecycle-uml-state-diagram)
 10. [Security Posture & Boundary Principles](#10-security-posture--boundary-principles)
+11. [Implementation Progress & Milestone Alignment](#11-implementation-progress--milestone-alignment)
 
 ---
 
@@ -27,7 +28,7 @@ This document defines the software architecture, design patterns, internal compo
 flowchart TB
     subgraph DrivingAdapters ["Driving Adapters (Input Layer)"]
         CLI["CLI Commands Adapter\n(cmd/lazyssh: list, ping, connect)"]
-        TUI["Terminal UI Adapter\n(internal/presentation/tui: Bubble Tea)"]
+        TUI["Terminal UI Adapter\n(internal/interfaces/tui: Bubble Tea)"]
     end
 
     subgraph InboundPorts ["Inbound Ports (Application Interfaces)"]
@@ -118,12 +119,21 @@ classDiagram
         +int Port
         +List~string~ IdentityFiles
         +string ProxyJump
+        +string ProxyCommand
+        +bool ForwardAgent
+        +List~PortForward~ LocalForwards
+        +List~PortForward~ RemoteForwards
+        +List~string~ DynamicForwards
+        +Map~string,string~ ExtraDirectives
         +List~string~ Tags
         +bool IsFavorite
         +Duration Latency
         +Time LastConnectedAt
         +Validate() error
+        +EffectivePort() int
+        +EffectiveHostName() string
         +FormattedAddress() string
+        +SSHArgs() List~string~
     }
 
     class PortForward {
@@ -550,3 +560,17 @@ stateDiagram-v2
    - External command execution forbids raw shell strings (`sh -c`). Commands are constructed as explicit parameter slices passed directly to system exec syscalls (`syscall.Execve` / `os/exec.Command`).
 5. **Cycle Detection for Include Directives**:
    - The AST resolver maintains an in-memory hash set of visited canonical paths (`filepath.EvalSymlinks`) to detect and reject recursive file inclusions or malicious symlink loops.
+
+---
+
+## 11. Implementation Progress & Milestone Alignment
+
+| Milestone / Phase | Subsystem & Scope | Status | Verification & Deliverables |
+| :--- | :--- | :---: | :--- |
+| **Phase 0: Scaffolding** | Repository baseline, CI/CD matrix (Ubuntu, macOS, Windows), strict linter (`.golangci.yml`), GoReleaser configuration, Makefile targets (`build`, `test`, `lint`, `check`). | ✅ Completed | All CI workflows passing on `main`. |
+| **Phase 1: Core Engine** | Hexagonal domain entities (`internal/domain/host.go`), strongly typed domain errors (`internal/domain/errors.go`), lossless streaming AST parser (`internal/infrastructure/sshconfig/ast.go`, `parser.go`), crash-proof atomic writer with `0600` perms & `fsync` (`writer.go`), isolated test suites (`test/domain/`, `test/sshconfig/`). | ✅ Completed | 17 unit tests passing with `-race`, 100% pass on Linux, macOS, and Windows. |
+| **Phase 2: System Runtime** | OpenSSH client `/usr/bin/ssh` terminal raw mode PTY handover (`internal/infrastructure/process/pty_runner.go`), pure Go TCP 3-way handshake latency prober (`internal/infrastructure/network/tcp_prober.go`), bounded concurrency worker pool (`internal/infrastructure/network/worker_pool.go`), isolated tests (`test/process/`, `test/network/`). | 🚀 Next Milestone | Implementation ready to begin. |
+| **Phase 3: Interactive TUI** | Elm Architecture dashboard via Charmbracelet Bubble Tea & Lipgloss (`internal/interfaces/tui/`), responsive multi-panel layout, fuzzy search filtering, modal forms. | 📋 Planned | Milestone 3. |
+| **Phase 4: Tunnels & Keys** | Active tunnel daemon & supervisor (`-L`, `-R`, `-D`), `ssh-agent` UNIX socket reader (`$SSH_AUTH_SOCK`), identity key fingerprint inspector. | 📋 Planned | Milestone 4. |
+| **Phase 5: CLI & Distribution** | Headless subcommands (`connect`, `list --json`, `ping`), cross-platform binary distribution via GoReleaser. | 📋 Planned | Milestone 5. |
+

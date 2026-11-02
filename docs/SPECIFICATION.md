@@ -116,13 +116,41 @@ This document defines the functional and non-functional requirements, data model
 
 ## 4. Core Data Models (Go)
 
+The enterprise domain models reside in `internal/domain/host.go` with zero external dependencies outside the Go standard library.
+
 ```go
-package model
+package domain
 
-import "time"
+import (
+    "fmt"
+    "strconv"
+    "strings"
+    "time"
+)
 
-// HostConfig represents an SSH host block parsed from ~/.ssh/config.
-type HostConfig struct {
+// ForwardType defines the port forwarding direction or protocol.
+type ForwardType string
+
+const (
+    ForwardLocal   ForwardType = "LOCAL"   // -L [bind_address:]port:host:hostport
+    ForwardRemote  ForwardType = "REMOTE"  // -R [bind_address:]port:host:hostport
+    ForwardDynamic ForwardType = "DYNAMIC" // -D [bind_address:]port (SOCKS5 proxy)
+)
+
+// PortForward represents a validated SSH port forwarding tunnel definition.
+type PortForward struct {
+    Type       ForwardType `json:"type"`        // LOCAL, REMOTE, or DYNAMIC
+    BindHost   string      `json:"bind_host"`   // Local bind IP or loopback
+    BindPort   int         `json:"bind_port"`   // Local listening port
+    TargetHost string      `json:"target_host"` // Remote destination host
+    TargetPort int         `json:"target_port"` // Remote destination port
+    HostAlias  string      `json:"host_alias"`  // Associated Host alias
+    IsActive   bool        `json:"is_active"`   // Live runtime status
+    PID        int         `json:"pid,omitempty"` // Daemon process PID if running
+}
+
+// Host represents a parsed and validated OpenSSH host configuration entry.
+type Host struct {
     Alias           string            `json:"alias"`
     HostName        string            `json:"hostname"`
     User            string            `json:"user,omitempty"`
@@ -135,7 +163,7 @@ type HostConfig struct {
     RemoteForwards  []PortForward     `json:"remote_forwards,omitempty"`
     DynamicForwards []string          `json:"dynamic_forwards,omitempty"`
     ExtraDirectives map[string]string `json:"extra_directives,omitempty"`
-    
+
     // Metadata maintained by lazyssh
     SourceFile      string            `json:"source_file"`
     LineNumber      int               `json:"line_number"`
@@ -145,31 +173,37 @@ type HostConfig struct {
     Latency         *time.Duration    `json:"latency,omitempty"`
     IsReachable     bool              `json:"is_reachable"`
 }
-
-// PortForward represents a port forwarding tunnel definition.
-type PortForward struct {
-    Type       ForwardType `json:"type"` // Local, Remote, Dynamic
-    BindHost   string      `json:"bind_host"`
-    BindPort   int         `json:"bind_port"`
-    TargetHost string      `json:"target_host"`
-    TargetPort int         `json:"target_port"`
-    HostAlias  string      `json:"host_alias"`
-    IsActive   bool        `json:"is_active"`
-    PID        int         `json:"pid,omitempty"`
-}
-
-type ForwardType string
-
-const (
-    ForwardLocal   ForwardType = "LOCAL"
-    ForwardRemote  ForwardType = "REMOTE"
-    ForwardDynamic ForwardType = "DYNAMIC"
-)
 ```
+
+### Domain Methods & Behaviors
+
+| Method | Receiver | Description |
+| :--- | :--- | :--- |
+| `Validate()` | `*Host` | Enforces alias format, valid port boundaries (`1 - 65535`), and nested forward validity. |
+| `EffectivePort()` | `*Host` | Returns the explicitly defined port, or defaults to standard `22`. |
+| `EffectiveHostName()` | `*Host` | Returns `HostName` or falls back to `Alias` if `HostName` is empty. |
+| `FormattedAddress()` | `*Host` | Generates a display address string (e.g. `user@hostname:2222` or `hostname`). |
+| `SSHArgs()` | `*Host` | Generates the exact parameter slice for spawning `/usr/bin/ssh` subprocesses. |
+| `Validate()` | `*PortForward` | Validates bind/target port boundaries and requires destination host on local/remote forwards. |
+| `TunnelSpec()` | `*PortForward` | Synthesizes OpenSSH tunnel arguments (e.g. `-L 8080:127.0.0.1:80`). |
 
 ---
 
 ## 5. Error Handling & Edge Cases
+
+The domain layer enforces strongly typed sentinel errors (`internal/domain/errors.go`) for predictable programmatic handling:
+
+| Domain Sentinel Error | Description |
+| :--- | :--- |
+| `ErrEmptyAlias` | Host alias is empty or contains only whitespace. |
+| `ErrInvalidPort` | Port number is outside the allowed TCP range `[1, 65535]`. |
+| `ErrHostNotFound` | Requested host alias does not exist in configuration. |
+| `ErrHostAlreadyExists` | Host alias collides with an existing configuration entry. |
+| `ErrCircularInclude` | Recursive cycle detected while resolving OpenSSH `Include` directives. |
+| `ErrPortOccupied` | Local bind port is already in use by another process. |
+| `ErrUnsafePermissions` | SSH config or identity file permissions are looser than required (`0600`/`0700`). |
+
+### Runtime Edge Cases
 
 1. **Missing or Corrupted Config**:
    - If `~/.ssh/config` is missing, `lazyssh` prompts the user with an option to initialize an empty or template config file.
@@ -177,6 +211,6 @@ const (
 2. **Permission Warnings**:
    - Warn if `~/.ssh/` permissions are looser than `0700` or `~/.ssh/config` is looser than `0600`.
 3. **Port Collisions**:
-   - When launching a tunnel, pre-test local bind port using `net.Listen("tcp", addr)`. If already occupied, return an informative error message.
+   - When launching a tunnel, pre-test local bind port using `net.Listen("tcp", addr)`. If already occupied, return `ErrPortOccupied`.
 4. **Terminal Resizing**:
    - Handle `tea.WindowSizeMsg` dynamically, reflowing panel widths and truncating long strings with ellipsis (`...`).
